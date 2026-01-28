@@ -26,3 +26,15 @@ go run ./cmd/cos-zip <root-directory>
 # 既存 zip を確認なしで上書きする場合
 go run ./cmd/cos-zip -f <root-directory>
 ```
+
+### cos-edrm
+
+Lightroom や Photoshop で加工されたファイル名に付与される `-Edit` サフィックスを取り除き、元のファイル名にリネームする CLI です。指定したディレクトリ以下を再帰的に探索し、引数を省略するとカレントディレクトリを対象にします。同名ファイルが既に存在する場合は安全のためエラーで停止します。
+
+```bash
+# カレントディレクトリ配下を探索
+go run ./cmd/cos-edrm
+
+# 任意のディレクトリを指定
+go run ./cmd/cos-edrm /path/to/exported/photos
+```
