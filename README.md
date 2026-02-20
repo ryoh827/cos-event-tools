@@ -26,3 +26,16 @@ go run ./cmd/cos-zip <root-directory>
 # 既存 zip を確認なしで上書きする場合
 go run ./cmd/cos-zip -f <root-directory>
 ```
+
+## 一括インストール（`~/bin`）
+
+`cmd/` 配下の `package main` を自動検出して、各CLIをまとめてビルドし `~/bin` に配置できます。
+新しいCLIを `cmd/<tool>/main.go` として追加した場合も、スクリプト側のメンテナンスは不要です。
+
+```bash
+# デフォルト: ~/bin に配置
+./scripts/install-all-bins.sh
+
+# 配置先を指定する場合
+./scripts/install-all-bins.sh -d ~/bin
+```
