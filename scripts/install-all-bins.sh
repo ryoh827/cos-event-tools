@@ -52,6 +52,16 @@ if ! command -v go >/dev/null 2>&1; then
   exit 127
 fi
 
+if [[ ! -f go.mod ]]; then
+  if [[ "${dry_run}" == true ]]; then
+    echo "[dry-run] Error: go.mod not found. Please run this script from the module root."
+    echo "Dry-run completed."
+    exit 0
+  fi
+  echo "Error: go.mod not found. Please run this script from the module root." >&2
+  exit 1
+fi
+
 if [[ "${install_dir}" == ~* ]]; then
   install_dir="${install_dir/#\~/${HOME}}"
 fi
@@ -62,7 +72,10 @@ else
   echo "[dry-run] mkdir -p ${install_dir}"
 fi
 
-mapfile -t packages < <(go list -f '{{if eq .Name "main"}}{{.ImportPath}}{{end}}' ./cmd/... | sed '/^$/d')
+packages=()
+while IFS= read -r pkg; do
+  [[ -n "${pkg}" ]] && packages+=("${pkg}")
+done < <(go list -f '{{if eq .Name "main"}}{{.ImportPath}}{{end}}' ./cmd/...)
 
 if ((${#packages[@]} == 0)); then
   echo "No main packages found under ./cmd/..." >&2
