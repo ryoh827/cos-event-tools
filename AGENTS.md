@@ -12,6 +12,7 @@
 - `go run ./cmd/<tool> [args]`：CSV変換やファイル生成など目的別の検証を素早く行えます。例: `go run ./cmd/cos-mkdir sample/event.csv`。
 - `go test ./...`：すべてのパッケージを対象にユニットテストを実行します。必要に応じ `-run` で絞り込み、`-v` で詳細ログを出力します。
 - `go install ./cmd/<tool>`：頻繁に使うツールを `$GOBIN` へ配置し、日常のオペレーションフローに組み込みます。
+- `./scripts/install-all-bins.sh`：`cmd/` 配下の `package main` を自動検出し、各CLIをまとめてビルドして `~/bin` へ配置します。配置先を変更する場合は `./scripts/install-all-bins.sh -d ~/bin` のように `-d` を指定します。
 
 ## Coding Style & Naming Conventions
 - Goの標準スタイルに従い、`gofmt` と `goimports` を必ず適用します。Lintを追加する場合は設定ファイルを共有し、CI 導入時には README で告知します。
