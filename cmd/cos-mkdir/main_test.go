@@ -3,117 +3,116 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
-func TestResolveCSVPath_WithArgument(t *testing.T) {
-	got, auto, err := resolveCSVPath([]string{"events.csv"}, t.TempDir())
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	if got != "events.csv" {
-		t.Fatalf("got %q, want %q", got, "events.csv")
-	}
-	if auto {
-		t.Fatalf("expected auto=false for explicit argument")
-	}
-}
-
-func TestResolveCSVPath_TooManyArguments(t *testing.T) {
-	_, _, err := resolveCSVPath([]string{"a.csv", "b.csv"}, t.TempDir())
-	if err == nil {
-		t.Fatalf("expected error")
-	}
-	if err.Error() != "too many arguments" {
-		t.Fatalf("got %q", err.Error())
-	}
-}
-
-func TestResolveCSVPath_AutoSelectSingleCSV(t *testing.T) {
-	dir := t.TempDir()
-	if err := touchFile(filepath.Join(dir, "events.csv")); err != nil {
-		t.Fatalf("touch file: %v", err)
-	}
-
-	got, auto, err := resolveCSVPath(nil, dir)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	if got != "events.csv" {
-		t.Fatalf("got %q, want %q", got, "events.csv")
-	}
-	if !auto {
-		t.Fatalf("expected auto=true")
-	}
-}
-
-func TestResolveCSVPath_AutoSelectUppercaseExt(t *testing.T) {
-	dir := t.TempDir()
-	if err := touchFile(filepath.Join(dir, "events.CSV")); err != nil {
-		t.Fatalf("touch file: %v", err)
-	}
-
-	got, auto, err := resolveCSVPath(nil, dir)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	if got != "events.CSV" {
-		t.Fatalf("got %q, want %q", got, "events.CSV")
-	}
-	if !auto {
-		t.Fatalf("expected auto=true")
-	}
-}
-
-func TestResolveCSVPath_NoCSV(t *testing.T) {
-	dir := t.TempDir()
-	if err := touchFile(filepath.Join(dir, "notes.txt")); err != nil {
-		t.Fatalf("touch file: %v", err)
-	}
-
-	_, _, err := resolveCSVPath(nil, dir)
-	if err == nil {
-		t.Fatalf("expected error")
-	}
-	if err.Error() != "csv file is required: no CSV files found in current directory" {
-		t.Fatalf("got %q", err.Error())
-	}
-}
-
-func TestResolveCSVPath_MultipleCSV(t *testing.T) {
-	dir := t.TempDir()
-	for _, name := range []string{"z.csv", "a.CSV"} {
-		if err := touchFile(filepath.Join(dir, name)); err != nil {
-			t.Fatalf("touch file %q: %v", name, err)
-		}
+func TestResolveCSVPath(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     []string
+		setup    func(t *testing.T, dir string)
+		wantPath string
+		wantAuto bool
+		wantErr  string
+	}{
+		{
+			name:     "with argument",
+			args:     []string{"events.csv"},
+			wantPath: "events.csv",
+			wantAuto: false,
+		},
+		{
+			name:    "too many arguments",
+			args:    []string{"a.csv", "b.csv"},
+			wantErr: "too many arguments",
+		},
+		{
+			name: "auto select single csv",
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+				if err := touchFile(filepath.Join(dir, "events.csv")); err != nil {
+					t.Fatalf("touch file: %v", err)
+				}
+			},
+			wantPath: "events.csv",
+			wantAuto: true,
+		},
+		{
+			name: "auto select uppercase ext",
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+				if err := touchFile(filepath.Join(dir, "events.CSV")); err != nil {
+					t.Fatalf("touch file: %v", err)
+				}
+			},
+			wantPath: "events.CSV",
+			wantAuto: true,
+		},
+		{
+			name: "no csv",
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+				if err := touchFile(filepath.Join(dir, "notes.txt")); err != nil {
+					t.Fatalf("touch file: %v", err)
+				}
+			},
+			wantErr: "csv file is required: no CSV files found in current directory",
+		},
+		{
+			name: "multiple csv",
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+				for _, name := range []string{"z.csv", "a.CSV"} {
+					if err := touchFile(filepath.Join(dir, name)); err != nil {
+						t.Fatalf("touch file %q: %v", name, err)
+					}
+				}
+			},
+			wantErr: "csv file is required: multiple CSV files found in current directory: a.CSV, z.csv",
+		},
+		{
+			name: "ignores directory named csv",
+			setup: func(t *testing.T, dir string) {
+				t.Helper()
+				if err := os.Mkdir(filepath.Join(dir, "data.csv"), 0o755); err != nil {
+					t.Fatalf("mkdir: %v", err)
+				}
+				if err := touchFile(filepath.Join(dir, "memo.txt")); err != nil {
+					t.Fatalf("touch file: %v", err)
+				}
+			},
+			wantErr: "csv file is required: no CSV files found in current directory",
+		},
 	}
 
-	_, _, err := resolveCSVPath(nil, dir)
-	if err == nil {
-		t.Fatalf("expected error")
-	}
-	want := "csv file is required: multiple CSV files found in current directory: a.CSV, z.csv"
-	if err.Error() != want {
-		t.Fatalf("got %q, want %q", err.Error(), want)
-	}
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if tt.setup != nil {
+				tt.setup(t, dir)
+			}
 
-func TestResolveCSVPath_IgnoresDirectoryNamedCSV(t *testing.T) {
-	dir := t.TempDir()
-	if err := os.Mkdir(filepath.Join(dir, "data.csv"), 0o755); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
-	if err := touchFile(filepath.Join(dir, "memo.txt")); err != nil {
-		t.Fatalf("touch file: %v", err)
-	}
+			gotPath, gotAuto, err := resolveCSVPath(tt.args, dir)
+			if tt.wantErr != "" {
+				if err == nil {
+					t.Fatalf("expected error %q, got nil", tt.wantErr)
+				}
+				if err.Error() != tt.wantErr {
+					t.Fatalf("got error %q, want %q", err.Error(), tt.wantErr)
+				}
+				return
+			}
 
-	_, _, err := resolveCSVPath(nil, dir)
-	if err == nil {
-		t.Fatalf("expected error")
-	}
-	if !strings.Contains(err.Error(), "no CSV files found in current directory") {
-		t.Fatalf("got %q", err.Error())
+			if err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+			if gotPath != tt.wantPath {
+				t.Fatalf("got path %q, want %q", gotPath, tt.wantPath)
+			}
+			if gotAuto != tt.wantAuto {
+				t.Fatalf("got auto %v, want %v", gotAuto, tt.wantAuto)
+			}
+		})
 	}
 }
 

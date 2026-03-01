@@ -12,21 +12,29 @@ import (
 )
 
 func main() {
-	csvPath, autoSelected, err := resolveCSVPath(os.Args[1:], ".")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		printUsage(os.Stderr)
+	if err := run(os.Args[1:], os.Stdout, os.Stderr); err != nil {
 		os.Exit(1)
+	}
+}
+
+func run(args []string, stdout, stderr io.Writer) error {
+	csvPath, autoSelected, err := resolveCSVPath(args, ".")
+	if err != nil {
+		fmt.Fprintf(stderr, "error: %v\n", err)
+		printUsage(stderr)
+		return err
 	}
 
 	if autoSelected {
-		fmt.Printf("using csv file: %s\n", csvPath)
+		fmt.Fprintf(stdout, "using csv file: %s\n", csvPath)
 	}
 
-	if err := run(csvPath); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+	if err := runCSV(csvPath); err != nil {
+		fmt.Fprintf(stderr, "error: %v\n", err)
+		return err
 	}
+
+	return nil
 }
 
 func printUsage(w io.Writer) {
@@ -79,7 +87,7 @@ func findCSVFiles(dir string) ([]string, error) {
 	return csvFiles, nil
 }
 
-func run(csvPath string) error {
+func runCSV(csvPath string) error {
 	file, err := os.Open(csvPath)
 	if err != nil {
 		return fmt.Errorf("open csv: %w", err)
