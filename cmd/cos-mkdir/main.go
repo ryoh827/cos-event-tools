@@ -6,20 +6,77 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
 
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Fprintf(os.Stderr, "usage: %s <csv-file>\n", filepath.Base(os.Args[0]))
+	csvPath, autoSelected, err := resolveCSVPath(os.Args[1:], ".")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		printUsage(os.Stderr)
 		os.Exit(1)
 	}
 
-	if err := run(os.Args[1]); err != nil {
+	if autoSelected {
+		fmt.Printf("using csv file: %s\n", csvPath)
+	}
+
+	if err := run(csvPath); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func printUsage(w io.Writer) {
+	fmt.Fprintf(w, "usage: %s [csv-file]\n", filepath.Base(os.Args[0]))
+	fmt.Fprintln(w, "if [csv-file] is omitted, exactly one CSV in current directory is used automatically")
+}
+
+func resolveCSVPath(args []string, dir string) (string, bool, error) {
+	if len(args) > 1 {
+		return "", false, fmt.Errorf("too many arguments")
+	}
+	if len(args) == 1 {
+		return args[0], false, nil
+	}
+
+	csvFiles, err := findCSVFiles(dir)
+	if err != nil {
+		return "", false, fmt.Errorf("read current directory: %w", err)
+	}
+	if len(csvFiles) == 0 {
+		return "", false, fmt.Errorf("csv file is required: no CSV files found in current directory")
+	}
+	if len(csvFiles) > 1 {
+		return "", false, fmt.Errorf(
+			"csv file is required: multiple CSV files found in current directory: %s",
+			strings.Join(csvFiles, ", "),
+		)
+	}
+
+	return csvFiles[0], true, nil
+}
+
+func findCSVFiles(dir string) ([]string, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	csvFiles := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if strings.EqualFold(filepath.Ext(entry.Name()), ".csv") {
+			csvFiles = append(csvFiles, entry.Name())
+		}
+	}
+
+	sort.Strings(csvFiles)
+	return csvFiles, nil
 }
 
 func run(csvPath string) error {
@@ -44,7 +101,7 @@ func run(csvPath string) error {
 
 		line++
 		if line == 1 {
-			continue // skip header row
+			continue
 		}
 
 		for i := range record {
